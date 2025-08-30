@@ -1,17 +1,44 @@
 import { NextResponse } from "next/server";
 
-export async function GET() {
-    const { XI_API_KEY, ELEVENLABS_AGENT_ID } = process.env;
+const AGENT_ID_MAP = {
+    en: process.env.ELEVENLABS_AGENT_ID_EN,
+    hi: process.env.ELEVENLABS_AGENT_ID_HI,
+    fr: process.env.ELEVENLABS_AGENT_ID_FR,
+};
 
-    if (!XI_API_KEY || !ELEVENLABS_AGENT_ID) {
-        console.error("Missing required environment variables.");
+export async function POST(request) {
+    // Get language from request body
+    const { language } = await request.json();
+
+    if (!language) {
+        return NextResponse.json(
+            { error: "Language is required" },
+            { status: 400 }
+        );
+    }
+
+    // Get the appropriate agent ID based on language
+    const agentId = AGENT_ID_MAP[language];
+
+    if (!agentId) {
+        return NextResponse.json(
+            {
+                error: `Invalid language or agent not configured for: ${language}`,
+            },
+            { status: 400 }
+        );
+    }
+    const { XI_API_KEY } = process.env;
+
+    if (!XI_API_KEY) {
+        console.error("Missing XI_API_KEY required environment variable.");
         return NextResponse.json(
             { error: "Server configuration error." },
             { status: 500 }
         );
     }
 
-    const url = `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${ELEVENLABS_AGENT_ID}`;
+    const url = `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${agentId}`;
     const options = {
         method: "GET",
         headers: {

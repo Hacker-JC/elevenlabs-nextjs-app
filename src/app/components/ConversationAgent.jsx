@@ -3,11 +3,18 @@
 import { useState, useEffect } from "react";
 import { useConversation } from "@elevenlabs/react";
 
+const LANGUAGES = [
+    { code: "en", name: "English" },
+    { code: "hi", name: "Hindi" },
+    { code: "fr", name: "French" },
+];
+
 export default function ConversationAgent() {
     const [uiState, setUiState] = useState("disconnected");
     const [statusMessage, setStatusMessage] = useState(
         "Click the button to begin."
     );
+    const [selectedLanguage, setSelectedLanguage] = useState("en");
 
     const conversation = useConversation({
         onConnect: () => {
@@ -35,8 +42,16 @@ export default function ConversationAgent() {
         setStatusMessage("Connecting...");
 
         try {
-            // Fetch the signed URL from the API route
-            const response = await fetch("/api/get-signed-url");
+            // Send POST request with language in the body
+            const response = await fetch("/api/get-signed-url", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    language: selectedLanguage,
+                }),
+            });
 
             if (!response.ok) {
                 const errorDetails = await response.text();
@@ -47,7 +62,7 @@ export default function ConversationAgent() {
 
             const data = await response.json();
             const signedUrl = data.url;
-            console.log("signedUrl:" , signedUrl);
+            console.log("signedUrl:", signedUrl);
             // Start the conversation session with the signed URL
             await conversation.startSession({
                 signedUrl,
@@ -69,6 +84,11 @@ export default function ConversationAgent() {
         }
     };
 
+    const handleLanguageChange = (e) => {
+        setSelectedLanguage(e.target.value);
+        console.log("Language selected:", e.target.value);
+    };
+
     // Button states based on UI state
     const isStartButtonDisabled = uiState !== "disconnected";
     const isEndButtonDisabled = uiState !== "connected";
@@ -76,10 +96,29 @@ export default function ConversationAgent() {
         uiState === "disconnected" || uiState === "connecting";
     const showEndButton =
         uiState === "connected" || uiState === "disconnecting";
+    const isLanguageSelectDisabled = uiState !== "disconnected";
 
     return (
         <div className="conversation-container">
             <h1>ElevenLabs Conversational Agent</h1>
+
+            <div className="language-selector">
+                <label htmlFor="language-select">Select Language: </label>
+                <select
+                    id="language-select"
+                    value={selectedLanguage}
+                    onChange={handleLanguageChange}
+                    disabled={isLanguageSelectDisabled}
+                    className="language-dropdown"
+                >
+                    {LANGUAGES.map((lang) => (
+                        <option key={lang.code} value={lang.code}>
+                            {lang.name}
+                        </option>
+                    ))}
+                </select>
+            </div>
+
             <div className="button-container">
                 {showStartButton && (
                     <button
@@ -103,6 +142,18 @@ export default function ConversationAgent() {
                 )}
             </div>
             <div className="status">{statusMessage}</div>
+
+            {uiState === "connected" && (
+                <div className="active-language">
+                    Active Language:{" "}
+                    <strong>
+                        {
+                            LANGUAGES.find((l) => l.code === selectedLanguage)
+                                ?.name
+                        }
+                    </strong>
+                </div>
+            )}
         </div>
     );
 }
